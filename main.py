@@ -161,7 +161,7 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
 
     for step, (input, target) in enumerate(train_queue):
         target = target.cuda(non_blocking=True)        
-       
+        gf_model.train()
         if step % search_freq == 0:
            h_optimizer.zero_grad()
            with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
@@ -203,7 +203,6 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
                 input_image[i] = aug_image[i]
             else:
                 input_image[i] = input[i].cuda()      
-        gf_model.train()
         gf_optimizer.zero_grad()
         logits = gf_model(input_image)
         loss_adaaug = criterion(logits, target)
