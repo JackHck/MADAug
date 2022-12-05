@@ -77,8 +77,6 @@ def main():
     gf_model = get_model(model_name=args.model_name, num_class=n_class,
         use_cuda=True, data_parallel=False)
 
-    de_model = Augment_decision(in_features=gf_model.fc.in_features,
-        n_layers=args.n_proj_layer, n_hidden=128).cuda()
     
     h_model = Projection(in_features=gf_model.fc.in_features,
         n_layers=args.n_proj_layer, n_hidden=128).cuda()
@@ -94,7 +92,7 @@ def main():
         float(args.epochs), eta_min=args.learning_rate_min)
 
     h_optimizer = torch.optim.Adam(
-        [{"params":de_model.parameters()},{"params":h_model.parameters()}],
+        h_model.parameters(),
         lr=args.proj_learning_rate,
         betas=(0.9, 0.999),
         weight_decay=args.proj_weight_decay)
@@ -106,13 +104,13 @@ def main():
             total_epoch=e,
             after_scheduler=scheduler)
     
-    criterion = nn.CrossEntropyLoss(reduction='none')
+    criterion = nn.CrossEntropyLoss()
     criterion = criterion.cuda()
 
     #  AdaAug settings
     after_transforms = train_queue.dataset.after_transforms
     adaaug_config = {'sampling': 'prob',
-                    'k_ops': 2,
+                    'k_ops': 1,
                     'delta': 0.0,
                     'temp': 1.0,
                     'search_d': get_dataset_dimension(args.dataset),
@@ -132,9 +130,9 @@ def main():
         
         print('epoch',epoch)
         # searching
+        lr = scheduler.get_last_lr()[0]
         train_acc, train_obj = train(train_queue, search_queue, gf_model, adaaug,
-            criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq
-            ,de_model, args.threshold)
+            criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq,lr,n_class)
         print('train_acc',train_acc)
         # validation
         valid_acc, valid_obj = infer(test_queue, gf_model, criterion)
@@ -154,59 +152,42 @@ def main():
 
 
 def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
-            grad_clip, h_optimizer, epoch, search_freq,de_model,threshold):
+            grad_clip, h_optimizer, epoch, search_freq,lr,n_class):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
     top5 = utils.AvgrageMeter()
 
     for step, (input, target) in enumerate(train_queue):
+        input = input.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)        
         gf_model.train()
         if step % search_freq == 0:
+           meta_model = get_model(model_name=args.model_name, num_class=n_class,
+        use_cuda=True, data_parallel=False)
+           meta_model.load_state_dict(gf_model.state_dict())
+           inputs = adaaug(input, mode='exploit')
+           logits = meta_model(inputs)
+           loss = criterion(logits, target)
+           meta_model.zero_grad()
+           grads = torch.autograd.grad(loss, (meta_model.params()), create_graph=True)
+           meta_lr =  lr
+           meta_model.update_params(meta_lr, source_params=grads)
+           del grads
+           input_search, target_search = next(iter(valid_queue))
+           input_search = input_search.cuda(non_blocking=True)
+           target_search = target_search.cuda(non_blocking=True)
+           logits = meta_model(input_search)
+           loss_meta = criterion(logits, target_search) 
            h_optimizer.zero_grad()
-           with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
-             #adaaug.gf_model = meta_model
-             input = input.cuda(non_blocking=True)
-             noaug_features = meta_model.f(input)
-             logits_noaug = meta_model.g(noaug_features)
-             loss_noaug = criterion(logits_noaug, target) 
-             weight = de_model(noaug_features)
-             
-             mixed_features = adaaug(input, mode='explore')
-             logits_mix = meta_model.g(mixed_features)
-             loss_mix = criterion(logits_mix, target) 
-             
-             #aug_images = adaaug(input, mode='exploit')
-             #logits_aug = meta_model(aug_images)
-             #loss_aug = criterion(logits_aug, target) 
-             loss = weight*loss_mix+(1-weight)*loss_noaug
-             nn.utils.clip_grad_norm_(meta_model.parameters(), grad_clip)
-             diffopt.step(loss.mean())
-            
-             torch.cuda.empty_cache()
-             input_search, target_search = next(iter(valid_queue))
-             input_search =input_search.cuda(non_blocking=True) 
-             target_search = target_search.cuda(non_blocking=True)
-             logits = meta_model(input_search)
-             loss = criterion(logits, target_search)
-             loss.mean().backward()
-      
+           loss_meta.backward()
            h_optimizer.step()
+            
+        aug_image = adaaug(input, mode='exploit')
         
-        #adaaug.gf_model = gf_model
-        weight = de_model(gf_model.f(input.cuda()))
-       
-        input_image = torch.zeros_like(input).cuda()
-        aug_image = adaaug(input.cuda(), mode='exploit')
-        for i in range(input.size()[0]):
-            if weight[i]> threshold:
-                input_image[i] = aug_image[i]
-            else:
-                input_image[i] = input[i].cuda()      
         gf_optimizer.zero_grad()
-        logits = gf_model(input_image)
-        loss_adaaug = criterion(logits, target)
-        loss_adaaug.mean().backward()
+        logits = gf_model(aug_image)
+        loss = criterion(logits, target)
+        loss.backward()
         nn.utils.clip_grad_norm_(gf_model.parameters(), grad_clip)
         gf_optimizer.step()
             
