@@ -66,7 +66,7 @@ class AdaAug(nn.Module):
     def predict_aug_params(self, images, mode):
         self.gf_model.eval()
         if mode == 'exploit':
-            self.h_model.eval()
+            self.h_model.train()
             T = self.temp
         elif mode == 'explore':
             self.h_model.train()
