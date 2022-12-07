@@ -4,6 +4,7 @@ from __future__ import absolute_import
 import os
 import sys
 import time
+import copy
 import higher
 import torch
 import utils
@@ -181,7 +182,8 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
            h_optimizer.zero_grad()
            loss_meta.backward()
            h_optimizer.step()
-            
+           adaug.gf_model = copy.deepcopy(gf_model)
+           
         aug_image = adaaug(input, mode='exploit')
         
         gf_optimizer.zero_grad()
