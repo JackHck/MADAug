@@ -24,7 +24,7 @@ from load_data import CIFAR10
 from dataset import get_dataloaders, get_num_class, get_label_name, get_dataset_dimension,CutoutDefault
 from utils import LabelSmoothingCrossEntropy
 
-parser = argparse.ArgumentParser("ada_aug")
+parser = argparse.ArgumentParser("mda_aug")
 parser.add_argument('--dataroot', type=str, default='./', help='location of the data corpus')
 parser.add_argument('--dataset', type=str, default='cifar10', help='name of dataset')
 parser.add_argument('--batch_size', type=int, default=512, help='batch size')
@@ -56,7 +56,19 @@ parser.add_argument('--search_freq', type=float, default=1, help='exploration fr
 parser.add_argument('--n_proj_layer', type=int, default=0, help="number of hidden layer in augmentation policy projection")
 
 args = parser.parse_args()
-
+debug = True if args.save == "debug" else False
+args.save = '{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save)
+if debug:
+    args.save = os.path.join('debug', args.save)
+else:
+    args.save = os.path.join('search', args.dataset, args.save)
+utils.create_exp_dir(args.save)
+log_format = '%(asctime)s %(message)s'
+logging.basicConfig(stream=sys.stdout, level=logging.INFO,
+                    format=log_format, datefmt='%m/%d %I:%M:%S %p')
+fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
+fh.setFormatter(logging.Formatter(log_format))
+logging.getLogger().addHandler(fh)
 
 def main():
     if not torch.cuda.is_available():
@@ -76,7 +88,14 @@ def main():
         args.dataroot, args.cutout, args.cutout_length,
         split=args.train_portion, split_idx=0, target_lb=-1,
         search=True, search_divider=sdiv)
-   
+    
+    logging.info(f'Dataset: {args.dataset}')
+    logging.info(f'  |total: {len(train_queue.dataset)}')
+    logging.info(f'  |train: {len(train_queue)*args.batch_size}')
+    logging.info(f'  |valid: {len(valid_queue)*args.batch_size}')
+    logging.info(f'  |search: {len(search_queue)*sdiv}')
+    
+    
     #  model settings
     gf_model = get_model(model_name=args.model_name, num_class=n_class,
         use_cuda=True, data_parallel=False)
@@ -110,9 +129,9 @@ def main():
     criterion = LabelSmoothingCrossEntropy()
     criterion = criterion.cuda()
 
-    #  AdaAug settings
+    
     after_transforms = train_queue.dataset.after_transforms
-    adaaug_config = {'sampling': 'prob',
+    mdaaug_config = {'sampling': 'prob',
                     'k_ops': args.k_ops,
                     'delta': 0.3,
                     'temp': args.temperature,
@@ -124,27 +143,28 @@ def main():
         gf_model=gf_model,
         h_model=h_model,
         save_dir=args.save,
-        config=adaaug_config)
+        config=mdaaug_config)
 
     #  Start training
     start_time = time.time()
     best_acc1 = 0
     for epoch in range(args.epochs):
-        print('epoch',epoch)
+        lr = scheduler.get_last_lr()[0]
+        logging.info('epoch %d lr %e', epoch, lr)
         # searching
         split_rate = min(torch.tanh(torch.FloatTensor([(epoch)/args.threshold])).item()+0.01,1.0)
         train_acc, train_obj = train(train_queue, search_queue, gf_model, adaaug,
             criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq,split_rate,args.bi_epochs
             )
-        print('train_acc',train_acc)
+        logging.info(f'train_acc {train_acc} train_obj {train_obj}')
         # validation
         valid_acc, valid_obj = infer(test_queue, gf_model, criterion)
-        print('valid_acc',valid_acc)
+        logging.info(f'valid_acc {valid_acc}') 
         best_acc1 = max(valid_acc, best_acc1)
         print('acc/test_top1_best', best_acc1, epoch)
         output_best = 'Best Prec@1: %.3f\n' % (best_acc1)
         print(output_best)
-       
+        logging.info(f'test_acc {best_acc1}')
         scheduler.step()
 
         #utils.save_model(gf_model, os.path.join(args.save, 'gf_weights_cifar10.pt'))
