@@ -38,4 +38,4 @@ fi
 
 SAVE=./${DATASET}_${MODEL}_${BATCH}_${EPOCH}_SLR${SLR}_SF${SF}_cutout_${CUTOUT}_lr${LR}_wd${WD}_kops${KOS}
 
-python main.py --k_ops ${KOS} --report_freq 10 --num_workers 4 --epochs ${EPOCH} --batch_size ${BATCH} --learning_rate ${LR} --dataset ${DATASET} --model_name ${MODEL}  --gpu ${GPU} --weight_decay ${WD} --proj_learning_rate ${SLR} --search_freq ${SF} --temperature ${tem} --cutout --cutout_length ${CUTOUT} --save ${SAVE} 
+python main_higher.py --k_ops ${KOS} --report_freq 10 --num_workers 4 --epochs ${EPOCH} --batch_size ${BATCH} --learning_rate ${LR} --dataset ${DATASET} --model_name ${MODEL}  --gpu ${GPU} --weight_decay ${WD} --proj_learning_rate ${SLR} --search_freq ${SF} --temperature ${tem} --cutout --cutout_length ${CUTOUT} --save ${SAVE} 
