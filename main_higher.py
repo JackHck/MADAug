@@ -35,7 +35,6 @@ parser.add_argument('--report_freq', type=float, default=1, help='report frequen
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=20, help='number of training epochs')
 parser.add_argument('--bi_epochs', type=int, default=300, help='when to optimzie policies')
-parser.add_argument('--threshold', type=int, default=40, help='control the augment')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--save', type=str, default='./search', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='seed')
@@ -50,7 +49,7 @@ parser.add_argument('--use_parallel', type=bool, default=False, help="use data p
 parser.add_argument('--model_name', type=str, default='wresnet40_2', help="mode _name")
 parser.add_argument('--num_workers', type=int, default=0, help="num_workers")
 parser.add_argument('--k_ops', type=int, default=1, help="number of augmentation applied during training")
-parser.add_argument('--threshold', type=float, default=0.5, help="the threshold for augmentation")
+parser.add_argument('--threshold', type=int, default=40, help="the threshold for augmentation")
 parser.add_argument('--temperature', type=float, default=1.0, help="temperature")
 parser.add_argument('--search_freq', type=float, default=1, help='exploration frequency')
 parser.add_argument('--n_proj_layer', type=int, default=0, help="number of hidden layer in augmentation policy projection")
@@ -114,7 +113,7 @@ def main():
     after_transforms = train_queue.dataset.after_transforms
     adaaug_config = {'sampling': 'prob',
                     'k_ops': 1,
-                    'delta': 0.0,
+                    'delta':0.3,
                     'temp': 1.0,
                     'search_d': get_dataset_dimension(args.dataset),
                     'target_d': get_dataset_dimension(args.dataset)}
