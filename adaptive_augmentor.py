@@ -117,12 +117,12 @@ class AdaAug(nn.Module):
             [Tensor]: return a batch of mixed features
         """
         magnitudes, weights = self.predict_aug_params(images, 'explore')
-        a_imgs = self.get_aug_valid_imgs(images, magnitudes)
-        a_features = self.gf_model.f(a_imgs)
-        ba_features = a_features.reshape(len(images), self.n_ops, -1)
-        
-        mixed_features = [w.matmul(feat) for w, feat in zip(weights, ba_features)]
-        mixed_features = torch.stack(mixed_features, dim=0)
+       a_imgs = self.get_aug_valid_imgs(images, magnitudes)
+        ba_imgs = a_imgs.reshape(len(images), self.n_ops,-1)
+        mixed_imgs = [w.matmul(feat) for w, feat in zip(weights, ba_imgs)]
+        mixed_imgs = torch.stack(mixed_imgs, dim=0)
+        mixed_imgs = mixed_imgs.reshape(len(images),3,images.size()[2],images.size()[3])
+        mixed_features = self.gf_model.f(mixed_imgs)
         return mixed_features
 
     def get_training_aug_images(self, images, magnitudes, weights):
