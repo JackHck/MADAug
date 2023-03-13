@@ -22,6 +22,7 @@ from torchvision import transforms
 from warmup_scheduler import GradualWarmupScheduler
 from load_data import CIFAR10
 from dataset import get_dataloaders, get_num_class, get_label_name, get_dataset_dimension,CutoutDefault
+from utils import LabelSmoothingCrossEntropy
 
 parser = argparse.ArgumentParser("ada_aug")
 parser.add_argument('--dataroot', type=str, default='./', help='location of the data corpus')
@@ -106,15 +107,15 @@ def main():
             total_epoch=e,
             after_scheduler=scheduler)
     
-    criterion = nn.CrossEntropyLoss()
+    criterion = LabelSmoothingCrossEntropy()
     criterion = criterion.cuda()
 
     #  AdaAug settings
     after_transforms = train_queue.dataset.after_transforms
     adaaug_config = {'sampling': 'prob',
-                    'k_ops': 1,
-                    'delta':0.3,
-                    'temp': 1.0,
+                    'k_ops': args.k_ops,
+                    'delta': 0.3,
+                    'temp': args.temperature,
                     'search_d': get_dataset_dimension(args.dataset),
                     'target_d': get_dataset_dimension(args.dataset)}
 
