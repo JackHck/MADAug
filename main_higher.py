@@ -34,6 +34,8 @@ parser.add_argument('--weight_decay', type=float, default=2e-4, help='weight dec
 parser.add_argument('--report_freq', type=float, default=1, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=20, help='number of training epochs')
+parser.add_argument('--bi_epochs', type=int, default=300, help='when to optimzie policies')
+parser.add_argument('--threshold', type=int, default=40, help='control the augment')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--save', type=str, default='./search', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='seed')
@@ -130,8 +132,9 @@ def main():
     for epoch in range(args.epochs):
         print('epoch',epoch)
         # searching
+        split_rate = min(torch.tanh(torch.FloatTensor([(epoch)/args.threshold])).item()+0.01,1.0)
         train_acc, train_obj = train(train_queue, search_queue, gf_model, adaaug,
-            criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq
+            criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq,split_rate,args.bi_epochs
             )
         print('train_acc',train_acc)
         # validation
@@ -152,15 +155,14 @@ def main():
 
 
 def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
-            grad_clip, h_optimizer, epoch, search_freq):
+            grad_clip, h_optimizer, epoch, search_freq,split_rate,bi_epochs):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
     top5 = utils.AvgrageMeter()
 
     for step, (input, target) in enumerate(train_queue):
         target = target.cuda(non_blocking=True)        
-        
-        if step % search_freq == 0 :
+        if epoch>bi_epochs and step % search_freq == 0 :
            h_optimizer.zero_grad()
            with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
              adaaug.gf_model = meta_model
@@ -182,7 +184,18 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
            h_optimizer.step()
            adaaug.gf_model = copy.deepcopy(gf_model)
         
-        aug_image = adaaug(input, mode='exploit')     
+        if split_rate<1.0:
+            train_split = torch.split(input,[int(split_rate*args.batch_size),args.batch_size-int(split_rate*args.batch_size)],dim=0) 
+            aug_image = adaaug(train_split[0], mode='exploit')
+            trans_images = []
+            for i, image in enumerate(train_split[1]):
+                pil_image = transforms.ToPILImage()(image)
+                trans_image = adaaug.after_transforms(pil_image)
+                trans_images.append(trans_image)
+            aug_imgs = torch.stack(trans_images, dim=0).cuda() 
+            aug_image = torch.cat((aug_image, aug_imgs), dim=0)
+        else:
+              aug_image = adaaug(input, mode='exploit')    
         gf_model.train()
         gf_optimizer.zero_grad()
         logits = gf_model(aug_image)
