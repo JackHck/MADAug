@@ -117,7 +117,7 @@ class AdaAug(nn.Module):
             [Tensor]: return a batch of mixed features
         """
         magnitudes, weights = self.predict_aug_params(images, 'explore')
-       a_imgs = self.get_aug_valid_imgs(images, magnitudes)
+        a_imgs = self.get_aug_valid_imgs(images, magnitudes)
         ba_imgs = a_imgs.reshape(len(images), self.n_ops,-1)
         mixed_imgs = [w.matmul(feat) for w, feat in zip(weights, ba_imgs)]
         mixed_imgs = torch.stack(mixed_imgs, dim=0)
