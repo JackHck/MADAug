@@ -185,24 +185,26 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
         if epoch>bi_epochs and step % search_freq == 0 :
            h_optimizer.zero_grad()
            with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
-             adaaug.gf_model = meta_model
-             aug_images = adaaug(input, mode='exploit')
-             logits = meta_model(aug_images)
-             loss = criterion(logits, target) 
-             
-             nn.utils.clip_grad_norm_(meta_model.parameters(), grad_clip)
-             diffopt.step(loss)
+             h_optimizer.zero_grad()
+             with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
+               adaaug.gf_model = meta_model
+               aug_image = adaaug(input, mode='explore') 
+               logits = meta_model.g(aug_image)  
+               loss = criterion(logits, target) 
+               nn.utils.clip_grad_norm_(meta_model.parameters(), grad_clip)
+               diffopt.step(loss)
             
-             torch.cuda.empty_cache()
-             input_search, target_search = next(iter(valid_queue))
-             input_search =input_search.cuda(non_blocking=True) 
-             target_search = target_search.cuda(non_blocking=True)
-             logits = meta_model(input_search)
-             loss = criterion(logits, target_search)
-             loss.backward()
+               torch.cuda.empty_cache()
+               input_search, target_search = next(iter(valid_queue))
+               input_search =input_search.cuda(non_blocking=True) 
+               target_search = target_search.cuda(non_blocking=True)
+               logits = meta_model(input_search)
+               loss = criterion(logits, target_search)
+               loss.backward()
       
-           h_optimizer.step()
-           adaaug.gf_model = copy.deepcopy(gf_model)
+             h_optimizer.step()
+         
+             adaaug.gf_model = copy.deepcopy(gf_model)
         
         if split_rate<1.0:
             train_split = torch.split(input,[int(split_rate*args.batch_size),args.batch_size-int(split_rate*args.batch_size)],dim=0) 
