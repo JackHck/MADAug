@@ -89,7 +89,7 @@ class MDAAug(nn.Module):
             #print(k, mean_lambda, mean_p, std_lambda, std_p)
 
     def get_aug_valid_imgs(self, images, magnitudes):
-        """Return the mixed latent feature
+        """Return the mixed imgae
 
         Args:
             images ([Tensor]): [description]
@@ -109,12 +109,12 @@ class MDAAug(nn.Module):
         return torch.stack(trans_image_list, dim=0)
 
     def explore(self, images):
-        """Return the mixed latent feature
+        """Return the mixed image
 
         Args:
             images ([Tensor]): [description]
         Returns:
-            [Tensor]: return a batch of mixed features
+            [Tensor]: return a batch of mixed images
         """
         magnitudes, weights = self.predict_aug_params(images, 'explore')
         a_imgs = self.get_aug_valid_imgs(images, magnitudes)
