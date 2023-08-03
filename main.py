@@ -13,7 +13,7 @@ import argparse
 import torch.nn as nn
 import torch.utils
 
-from adaptive_augmentor import AdaAug
+from adaptive_augmentor import MDAAug
 from networks import get_model
 from networks.projection import Projection,Augment_decision
 from config import get_search_divider
@@ -21,7 +21,7 @@ from config import get_warmup_config
 from dataset import get_dataloaders, get_num_class, get_label_name, get_dataset_dimension
 from warmup_scheduler import GradualWarmupScheduler
 
-parser = argparse.ArgumentParser("ada_aug")
+parser = argparse.ArgumentParser("mdaaug")
 parser.add_argument('--dataroot', type=str, default='./', help='location of the data corpus')
 parser.add_argument('--dataset', type=str, default='cifar10', help='name of dataset')
 parser.add_argument('--batch_size', type=int, default=512, help='batch size')
@@ -108,21 +108,21 @@ def main():
     criterion = nn.CrossEntropyLoss()
     criterion = criterion.cuda()
 
-    #  AdaAug settings
+    #  MDAAug settings
     after_transforms = train_queue.dataset.after_transforms
-    adaaug_config = {'sampling': 'prob',
+    mdaaug_config = {'sampling': 'prob',
                     'k_ops': 1,
                     'delta': 0.0,
                     'temp': 1.0,
                     'search_d': get_dataset_dimension(args.dataset),
                     'target_d': get_dataset_dimension(args.dataset)}
 
-    adaaug = AdaAug(after_transforms=after_transforms,
+    mdaaug = MDAAug(after_transforms=after_transforms,
         n_class=n_class,
         gf_model=gf_model,
         h_model=h_model,
         save_dir=args.save,
-        config=adaaug_config)
+        config=mdaaug_config)
 
     #  Start training
     start_time = time.time()
@@ -132,7 +132,7 @@ def main():
         print('epoch',epoch)
         # searching
         lr = scheduler.get_last_lr()[0]
-        train_acc, train_obj = train(train_queue, search_queue, gf_model, adaaug,
+        train_acc, train_obj = train(train_queue, search_queue, gf_model, mdaaug,
             criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq,lr,n_class)
         print('train_acc',train_acc)
         # validation
@@ -152,7 +152,7 @@ def main():
 
 
 
-def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
+def train(train_queue, valid_queue, gf_model, mdaaug, criterion, gf_optimizer,
             grad_clip, h_optimizer, epoch, search_freq,lr,n_class):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
@@ -166,7 +166,7 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
            meta_model = get_model(model_name=args.model_name, num_class=n_class,
         use_cuda=True, data_parallel=False)
            meta_model.load_state_dict(gf_model.state_dict())
-           inputs = adaaug(input, mode='exploit')
+           inputs = mdaaug(input, mode='exploit')
            logits = meta_model(inputs)
            loss = criterion(logits, target)
            meta_model.zero_grad()
@@ -182,9 +182,9 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
            h_optimizer.zero_grad()
            loss_meta.backward()
            h_optimizer.step()
-           adaug.gf_model = copy.deepcopy(gf_model)
+           mdaug.gf_model = copy.deepcopy(gf_model)
            
-        aug_image = adaaug(input, mode='exploit')
+        aug_image = mdaaug(input, mode='exploit')
         
         gf_optimizer.zero_grad()
         logits = gf_model(aug_image)
