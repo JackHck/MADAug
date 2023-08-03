@@ -183,8 +183,6 @@ def train(train_queue, valid_queue, gf_model, mdaaug, criterion, gf_optimizer,
     for step, (input, target) in enumerate(train_queue):
         target = target.cuda(non_blocking=True)        
         if epoch>bi_epochs and step % search_freq == 0 :
-           h_optimizer.zero_grad()
-           with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
              h_optimizer.zero_grad()
              with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
                mdaaug.gf_model = meta_model
