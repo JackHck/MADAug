@@ -38,10 +38,10 @@ def stop_gradient(trans_image, magnitude):
     images = images.detach() + adds
     return images
 
-class AdaAug(nn.Module):
+class MDAAug(nn.Module):
     def __init__(self, after_transforms, n_class, gf_model, h_model, save_dir=None, 
                     config=default_config):
-        super(AdaAug, self).__init__()
+        super(MDAAug, self).__init__()
         self.ops_names = OPS_NAMES
         self.n_ops = len(self.ops_names)
         self.after_transforms = after_transforms
