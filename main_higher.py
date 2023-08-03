@@ -154,7 +154,7 @@ def main():
         # searching
         split_rate = min(torch.tanh(torch.FloatTensor([(epoch)/args.threshold])).item()+0.01,1.0)
         train_acc, train_obj = train(train_queue, search_queue, gf_model, mdaaug,
-            criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq,split_rate,args.bi_epochs
+            criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq, split_rate, args.bi_epochs
             )
         logging.info(f'train_acc {train_acc} train_obj {train_obj}')
         # validation
@@ -175,7 +175,7 @@ def main():
 
 
 def train(train_queue, valid_queue, gf_model, mdaaug, criterion, gf_optimizer,
-            grad_clip, h_optimizer, epoch, search_freq,split_rate,bi_epochs):
+            grad_clip, h_optimizer, epoch, search_freq, split_rate, bi_epochs):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
     top5 = utils.AvgrageMeter()
