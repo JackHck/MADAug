@@ -13,7 +13,7 @@ import argparse
 import torch.nn as nn
 import torch.utils
 
-from adaptive_augmentor import AdaAug
+from adaptive_augmentor import MDAAug
 from networks import get_model
 from networks.projection import Projection,Augment_decision
 from config import get_search_divider
@@ -138,7 +138,7 @@ def main():
                     'search_d': get_dataset_dimension(args.dataset),
                     'target_d': get_dataset_dimension(args.dataset)}
 
-    adaaug = AdaAug(after_transforms=after_transforms,
+    mdaaug = MDAAug(after_transforms=after_transforms,
         n_class=n_class,
         gf_model=gf_model,
         h_model=h_model,
@@ -153,7 +153,7 @@ def main():
         logging.info('epoch %d lr %e', epoch, lr)
         # searching
         split_rate = min(torch.tanh(torch.FloatTensor([(epoch)/args.threshold])).item()+0.01,1.0)
-        train_acc, train_obj = train(train_queue, search_queue, gf_model, adaaug,
+        train_acc, train_obj = train(train_queue, search_queue, gf_model, mdaaug,
             criterion, gf_optimizer, args.grad_clip, h_optimizer, epoch, args.search_freq,split_rate,args.bi_epochs
             )
         logging.info(f'train_acc {train_acc} train_obj {train_obj}')
@@ -174,7 +174,7 @@ def main():
 
 
 
-def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
+def train(train_queue, valid_queue, gf_model, mdaaug, criterion, gf_optimizer,
             grad_clip, h_optimizer, epoch, search_freq,split_rate,bi_epochs):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
@@ -187,8 +187,8 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
            with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
              h_optimizer.zero_grad()
              with higher.innerloop_ctx(gf_model, gf_optimizer) as (meta_model, diffopt):
-               adaaug.gf_model = meta_model
-               aug_image = adaaug(input, mode='explore') 
+               mdaaug.gf_model = meta_model
+               aug_image = mdaaug(input, mode='explore') 
                logits = meta_model.g(aug_image)  
                loss = criterion(logits, target) 
                nn.utils.clip_grad_norm_(meta_model.parameters(), grad_clip)
@@ -204,20 +204,20 @@ def train(train_queue, valid_queue, gf_model, adaaug, criterion, gf_optimizer,
       
              h_optimizer.step()
          
-             adaaug.gf_model = copy.deepcopy(gf_model)
+             mdaaug.gf_model = copy.deepcopy(gf_model)
         
         if split_rate<1.0:
             train_split = torch.split(input,[int(split_rate*args.batch_size),args.batch_size-int(split_rate*args.batch_size)],dim=0) 
-            aug_image = adaaug(train_split[0], mode='exploit')
+            aug_image = mdaaug(train_split[0], mode='exploit')
             trans_images = []
             for i, image in enumerate(train_split[1]):
                 pil_image = transforms.ToPILImage()(image)
-                trans_image = adaaug.after_transforms(pil_image)
+                trans_image = mdaaug.after_transforms(pil_image)
                 trans_images.append(trans_image)
             aug_imgs = torch.stack(trans_images, dim=0).cuda() 
             aug_image = torch.cat((aug_image, aug_imgs), dim=0)
         else:
-              aug_image = adaaug(input, mode='exploit')    
+              aug_image = mdaaug(input, mode='exploit')    
         gf_model.train()
         gf_optimizer.zero_grad()
         logits = gf_model(aug_image)
