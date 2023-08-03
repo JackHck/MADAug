@@ -142,7 +142,7 @@ traitlets==4.3.3
 typed-ast==1.4.1
 typing-extensions==3.7.4.1
 urllib3==1.25.8
-warmup-scheduler @ git+https://github.com/ildoonet/pytorch-gradual-warmup-lr.git@6b5e8953a80aef5b324104dc0c2e9b8c34d622bd
+#warmup-scheduler @ git+https://github.com/ildoonet/pytorch-gradual-warmup-lr.git@6b5e8953a80aef5b324104dc0c2e9b8c34d622bd
 wcwidth==0.1.8
 webencodings==0.5.1
 Werkzeug==1.0.1
