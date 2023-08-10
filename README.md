@@ -1,5 +1,5 @@
-# MDAAug
-MDAAug： When to Learn What: Model-Adaptive Data Augmentation Curriculum
+# MADAug
+MADAug： When to Learn What: Model-Adaptive Data Augmentation Curriculum
 
 ### Introduction
 Model-Adaptive Data Augmentation (MADAug) that jointly trains an augmentation policy network to teach the model “when to learn what”.
