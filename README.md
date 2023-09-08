@@ -9,7 +9,7 @@ Model-Adaptive Data Augmentation (MADAug) that jointly trains an augmentation po
 Code supports Python 3.
 
 
-####  Install requirements
+### Install requirements
 
 ```shell
 pip install -r requirements.txt
