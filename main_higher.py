@@ -14,8 +14,8 @@ import torch.nn as nn
 import torch.utils
 
 from adaptive_augmentor import MDAAug
-from networks import get_model
-from networks.projection import Projection,Augment_decision
+from networks.get_model import get_model
+from networks.projection import Projection
 from config import get_search_divider
 from config import get_warmup_config
 from torchvision import transforms
