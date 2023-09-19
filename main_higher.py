@@ -47,7 +47,7 @@ parser.add_argument('--cutout', action='store_true', default=False, help='use cu
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--use_cuda', type=bool, default=True, help="use cuda default True")
 parser.add_argument('--use_parallel', type=bool, default=False, help="use data parallel default False")
-parser.add_argument('--model_name', type=str, default='wresnet40_2', help="mode _name")
+parser.add_argument('--model_name', type=str, default='wresnet40_2', help="model_name")
 parser.add_argument('--num_workers', type=int, default=0, help="num_workers")
 parser.add_argument('--k_ops', type=int, default=1, help="number of augmentation applied during training")
 parser.add_argument('--threshold', type=int, default=40, help="the threshold for augmentation")
