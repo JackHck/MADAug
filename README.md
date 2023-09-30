@@ -1,4 +1,4 @@
-# [ICCV 2023] MADAug： When to Learn What: Model-Adaptive Data Augmentation Curriculum
+# [ICCV 2023] MADAug: When to Learn What: Model-Adaptive Data Augmentation Curriculum
 
 [![arXiv](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)]([https://arxiv.org/abs/2309.04747])
 
